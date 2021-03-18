@@ -2,7 +2,7 @@
 
 1. Set current directory to this folder (FinalProject/)
 
-2. From terminal, locally install required packages using "npm install"
+2. From terminal, locally install required packages using "npm install npm install https://github.com/mapbox/node-sqlite3/tarball/master express express-session body-parser csv-string"
 
 3. Execute "node myweb.js" from terminal
 
