@@ -1,0 +1,27 @@
+* { margin:0; box-sizing:border-box; }
+html { font-size:65%;}
+table,td,th,tr { border:0.05rem solid lightgrey; font-size:1.25rem; height:2.2rem; border-spacing:0rem; }
+td { min-width:10rem; padding:0.2rem 0.5rem; text-align:center; font-style:italic; color:red; }
+th { padding:0.2rem 0.4rem; }
+tbody th { min-width:8rem; }
+.dropbtn { color:black; border:none; border-radius:1rem; cursor:pointer; }
+.dropdown { position:relative; display:inline-block; }
+.dropdown-content { display:none; position:absolute; background-color:white; min-width:16rem; box-shadow:0 0.5rem 0.8rem 0 rgba(0,0,0,0.1); z-index:1; }
+.dropdown-content p { padding:0.4rem; color:black; display:block; }
+.dropdown-content p:hover { background-color:#ddd; cursor: pointer; }
+.show { display:block; }
+.column-header-span { cursor:pointer; }
+.reset-btn { padding:0.5rem 1.5rem; background-color:#d43f3a; color:#fff; border: 1px solid ; border-radius:0.3rem; cursor:pointer; }
+.csv-download-btn { padding:0.5rem 1.5rem; background-color:blue; color:#fff; border: 1px solid ; border-radius:0.3rem; cursor:pointer; }
+.csv-upload-btn { padding:0.5rem 1.5rem; background-color:black; color:#fff; border: 1px solid ; border-radius:0.3rem; cursor:pointer; }
+.get-btn { padding:0.5rem 1.5rem; background-color:green; color:#fff; border: 1px solid ; border-radius:0.3rem; cursor:pointer; }
+.save-btn { padding:0.5rem 1.5rem; background-color:purple; color:#fff; border: 1px solid ; border-radius:0.3rem; cursor:pointer; }
+label { font-size: 1.5em; margin:4px; }
+button { margin-left:4px; }
+section { display:flex; align-items:center; margin:1rem 1.5rem; }
+#plot-btn { padding:0.5rem 1.5rem; background-color:cyan; color:black; border: 1px solid ; border-radius:0.3rem; cursor:pointer; }
+#plot-btn1 { padding:0.5rem 1.5rem; background-color:yellow; color:black; border: 1px solid ; border-radius:0.3rem; cursor:pointer; }
+#plot-btn2 { padding:0.5rem 1.5rem; background-color:violet; color:black; border: 1px solid ; border-radius:0.3rem; cursor:pointer; }
+#plot-btn3 { padding:0.5rem 1.5rem; background-color:white;  border: red 1px solid ; border-radius:0.8rem; cursor:pointer; }
+#plot-btn4 { padding:0.5rem 1.5rem; background-color:magenta; color:black; border: 1px solid ; border-radius:0.3rem; cursor:pointer; }
+#plotbox { width:600px; height:350px; }

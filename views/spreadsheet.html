@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<head>
+    <title>COMP3100.Proj.201653763</title>
+    <link rel="stylesheet" type="text/css" href="../public/stylingspreadsheet.css"/>
+    <script src="../public/Chart.bundle.min.js"></script>
+</head>
+
+<body onload="this.resetCells();">
+    <section>
+        <table class="spreadsheet__table" id="table-main">
+            <thead class="spreadsheet__table--headers" id="table-headers"></thead>
+            <tbody class="spreadsheet__table--body" id="table-body"></tbody>
+        </table>
+    </section>
+
+    <section>
+        <label for="sheetlist">Open a spreadsheet:</label>
+        <select id="sheetlist" name="sheetlist"></select>
+        <button class="get-btn" id="get0">Show data</button>
+        <form id="f1" action="/csv-export" method="get">
+            <button class="csv-download-btn" id="csv1">Download as CSV File</button>
+        </form>
+        <button class="reset-btn" id="reset">Reset data</button>
+        <button class="save-btn" id="save">Save as new</button>
+    </section>
+
+    <section>
+        <label>Plot chart:</label>
+        <button id="plot-btn">Line</button>
+        <button id="plot-btn1">Pie</button>
+        <button id="plot-btn2">Bar</button>
+        <button id="plot-btn4">Doughnut</button>
+        <button id="plot-btn3">clear chart</button>
+    </section>
+
+    <section>
+        <label>Import data into the spreadsheet from CSV File: </label>
+        <input type="file" id="csv-file-chooser">
+    </section><br>
+
+    <section>
+        <div id="plotbox">
+            <canvas id="mycanv"></canvas>
+        </div>
+    </section>
+
+    <script>
+        const requestParams = {
+            mode: 'cors',
+            credentials: 'same-origin',
+            headers : {
+                'Accept' : 'application/json',
+                'Content-Type' : 'application/json',
+            },
+        };
+
+        let rows = 11;
+        let columns = 6;
+        const ssD = "sprdsht_data";
+
+        function resetCells()
+        {
+            const d = this.get();
+            for (let i=1; i<d.length; i++)
+            {
+                for (let j=1; j<d[i].length; j++)
+                {
+                    const cell = document.getElementById(`r-${i}-${j}`);
+                    cell.innerHTML = "";
+                }
+            }
+        }
+
+        function createTable()
+        {
+            const d = [];
+            for (let i=0; i<=rows; i++)
+            {
+                const ch = [];
+                for (let j=0; j<=columns; j++)
+                {
+                    ch.push("");
+                }
+                d.push(ch);
+            }
+            return d;
+        }
+
+        function editCells(d, d0)
+        {
+            for (let i=0; i<d0.length; i++)
+            {
+                for (let j=0; j<d0[0].length; j++)
+                {
+                    d[i+1][j+1] = d0[i][j];
+                }
+            }
+        }
+
+        function get()
+        {
+            let data = localStorage.getItem(ssD);
+            if (data === undefined || data === null)
+            {
+                let initData = createTable();
+                return initData;
+            }
+            return JSON.parse(data);
+        }
+
+        function saveChanges(d)
+        {
+            localStorage.setItem(ssD, JSON.stringify(d));
+        }
+
+        function reset(data)
+        {
+            localStorage.removeItem(ssD);
+            this.buildSS();
+        }
+
+        function headerRow()
+        {
+            const tr = document.createElement("tr");
+            tr.setAttribute("id", "h-0");
+            for (let i=0; i<=columns; i++)
+            {
+                const th = document.createElement("th");
+                th.setAttribute("id", `h-0-${i}`);
+                th.setAttribute("class", `${i === 0 ? "" : "column-header"}`);
+                if (i!==0)
+                {
+                    const sp = document.createElement("span");
+                    sp.innerHTML = i;
+                    sp.setAttribute("class", "column-header-span");
+                    const drpDown = document.createElement("div");
+                    drpDown.setAttribute("class", "dropdown");
+                    drpDown.innerHTML = `
+                        <button class="dropbtn" id="col-dropbtn-${i}">...</button>
+                        <div id="col-dropdown-${i}" class="dropdown-content">
+                            <p class="col-insert-left">Insert a column to left</p>
+                            <p class="col-insert-right">Insert a column to right</p>
+                            <p class="col-delete">Delete this column</p>
+                        </div>
+                            `;
+                    th.appendChild(sp);
+                    th.appendChild(drpDown);
+                }
+                tr.appendChild(th);
+            }
+            return tr;
+        }
+
+        function bodyRow(row)
+        {
+            const tr = document.createElement("tr");
+            tr.setAttribute("id", `r-${row}`);
+            for (let i=0; i<=columns; i++)
+            {
+                const cell = document.createElement(`${i === 0 ? "th" : "td"}`);
+                if (i===0)
+                {
+                    cell.contentEditable = false;
+                    const sp = document.createElement("span");
+                    const drpDown = document.createElement("div");
+                    sp.innerHTML = row;
+                    drpDown.setAttribute("class", "dropdown");
+                    drpDown.innerHTML = `
+                        <button class="dropbtn" id="row-dropbtn-${row}">...</button>
+                        <div id="row-dropdown-${row}" class="dropdown-content">
+                            <p class="row-insert-top">Insert a row above</p>
+                            <p class="row-insert-bottom">Insert a row below</p>
+                            <p class="row-delete">Delete this row</p>
+                        </div>
+                        `;
+                    cell.appendChild(sp);
+                    cell.appendChild(drpDown);
+                    cell.setAttribute("class", "row-header");
+                }
+                else
+                {
+                    cell.contentEditable = true;
+                }
+                cell.setAttribute("id", `r-${row}-${i}`);
+                tr.appendChild(cell);
+            }
+            return tr;
+        }
+
+        function bodyRows(tB)
+        {
+            for (let i=1; i<=rows; i++)
+            {
+                tB.appendChild(this.bodyRow(i));
+            }
+        }
+
+        function insertData()
+        {
+            const data = this.get();
+            if (data===undefined || data===null)
+            {
+                return;
+            }
+
+            for (let i=1; i<data.length; i++)
+            {
+                for (let j=1; j<data[i].length; j++)
+                {
+                    const cell = document.getElementById(`r-${i}-${j}`);
+                    cell.innerHTML = data[i][j];
+                }
+            }
+        }
+        
+        function addEmptyRow(currRow, dir)
+        {
+            let data = this.get();
+            const cols = data[0].length;
+            const nRow = new Array(cols).fill("");
+            if (dir==="top")
+            {
+                data.splice(currRow, 0, nRow);
+            }
+            else if (dir==="bottom")
+            {
+                data.splice(currRow + 1, 0, nRow);
+            }
+            rows++;
+            saveChanges(data);
+            this.buildSS();
+        }
+
+        function delRow(currRow)
+        {
+            let data = this.get();
+            data.splice(currRow, 1);
+            rows++;
+            saveChanges(data);
+            this.buildSS();
+        }
+
+        function addEmptyColumn(currCol, dir)
+        {
+            let data = this.get();
+            for (let i=0; i<=rows; i++)
+            {
+                if (dir==="left")
+                {
+                    data[i].splice(currCol, 0, "");
+                }
+                else if (dir==="right")
+                {
+                    data[i].splice(currCol + 1, 0, "");
+                }
+            }
+            columns++;
+            saveChanges(data);
+            this.buildSS();
+        }
+
+        function delColumn(currCol)
+        {
+            let data = this.get();
+            for (let i=0; i<=rows; i++)
+            {
+                data[i].splice(currCol, 1);
+            }
+            columns++;
+            saveChanges(data);
+            this.buildSS();
+        }
+
+        // Map for storing the sorting history of every column;
+        const sortingHistory = new Map();
+
+        // Utility function to sort columns
+        function sortColumn(currCol)
+        {
+            let spreadSheetData = this.get();
+            let data = spreadSheetData.slice(1);
+            if (!data.some(a => a[currCol] !== ""))
+            {
+                return;
+            }
+            if (sortingHistory.has(currCol))
+            {
+                const sortOrder = sortingHistory.get(currCol);
+                switch (sortOrder)
+                {
+                    case "desc":
+                        data.sort(ascSort.bind(this, currCol));
+                        sortingHistory.set(currCol, "asc");
+                        break;
+                    case "asc":
+                        data.sort(dscSort.bind(this, currCol));
+                        sortingHistory.set(currCol, "desc");
+                        break;
+                }
+            }
+            else
+            {
+                data.sort(ascSort.bind(this, currCol));
+                sortingHistory.set(currCol, "asc");
+            }
+            data.splice(0, 0, new Array(data[0].length).fill(""));
+            saveChanges(data);
+            this.buildSS();
+        }
+
+        // Compare Functions for sorting - ascending
+        function ascSort(currCol, a, b)
+        {
+            let _a = a[currCol];
+            let _b = b[currCol];
+            if (_a==="")
+            {
+                return 1;
+            }
+            if (_b==="")
+            {
+                return -1;
+            }
+
+            // Check for strings and numbers
+            if (isNaN(_a) || isNaN(_b))
+            {
+                _a = _a.toString().toUpperCase();
+                _b = _b.toString().toUpperCase();
+                if (_a < _b)
+                {
+                    return -1;
+                }
+                if (_a > _b)
+                {
+                    return 1;
+                }
+                return 0;
+            }
+            return (_a - _b);
+        }
+
+        // Descending compare function
+        function dscSort(currCol, a, b)
+        {
+            let _a = a[currCol];
+            let _b = b[currCol];
+            if (_a==="")
+            {
+                return 1;
+            }
+            if (_b==="")
+            {
+                return -1;
+            }
+
+            // Check for strings and numbers
+            if (isNaN(_a) || isNaN(_b))
+            {
+                _a = _a.toString().toUpperCase();
+                _b = _b.toString().toUpperCase();
+                if (_a < _b)
+                {
+                    return 1;
+                }
+                if (_a > _b)
+                {
+                    return -1;
+                }
+                return 0;
+            }
+            return (_b - _a);
+        }
+
+        function buildSS()
+        {
+            const ssData = this.get();
+            rows = ssData.length - 1 || rows;
+            columns = ssData[0].length - 1 || columns;
+
+            const tHeadElem = document.getElementById("table-headers");
+            const tBodyElem = document.getElementById("table-body");
+
+            const tBody = tBodyElem.cloneNode(true);
+            tBodyElem.parentNode.replaceChild(tBody, tBodyElem);
+            const tHead = tHeadElem.cloneNode(true);
+            tHeadElem.parentNode.replaceChild(tHead, tHeadElem);
+
+            tHead.innerHTML = "";
+            tBody.innerHTML = "";
+
+            tHead.appendChild(headerRow(columns));
+            bodyRows(tBody, rows, columns);
+
+            insertData();
+
+            // attach focusout event listener to whole table body container
+            tBody.addEventListener("focusout", function(evt) {
+                if (evt.target && evt.target.nodeName === "TD")
+                {
+                    let item = evt.target;
+                    const indices = item.id.split("-");
+                    let ssData = get();
+                    ssData[indices[1]][indices[2]] = item.innerHTML;
+                    saveChanges(ssData);
+                }
+            });
+
+            // Attach click event listener to table body
+            tBody.addEventListener("click", function(evt) {
+                if (evt.target)
+                {
+                    if (evt.target.className==="dropbtn")
+                    {
+                        const idArr = evt.target.id.split("-");
+                        document.getElementById(`row-dropdown-${idArr[2]}`).classList.toggle("show");
+                    }
+                    if (evt.target.className==="row-insert-top")
+                    {
+                        const indices = evt.target.parentNode.id.split("-");
+                        addEmptyRow(parseInt(indices[2]), "top");
+                    }
+                    if (evt.target.className==="row-insert-bottom")
+                    {
+                        const indices = evt.target.parentNode.id.split("-");
+                        addEmptyRow(parseInt(indices[2]), "bottom");
+                    }
+                    if (evt.target.className==="row-delete")
+                    {
+                        const indices = evt.target.parentNode.id.split("-");
+                        delRow(parseInt(indices[2]));
+                    }
+                }
+            });
+
+            // Attach click event listener to table headers
+            tHead.addEventListener("click", function(evt) {
+                if (evt.target)
+                {
+                    if (evt.target.className==="column-header-span")
+                    {
+                        sortColumn(parseInt(evt.target.parentNode.id.split("-")[2]));
+                    }
+                    if (evt.target.className==="dropbtn")
+                    {
+                        const idArr = evt.target.id.split("-");
+                        document
+                        .getElementById(`col-dropdown-${idArr[2]}`)
+                        .classList.toggle("show");
+                    }
+                    if (evt.target.className==="col-insert-left")
+                    {
+                        const indices = evt.target.parentNode.id.split("-");
+                        addEmptyColumn(parseInt(indices[2]), "left");
+                    }
+                    if (evt.target.className==="col-insert-right")
+                    {
+                        const indices = evt.target.parentNode.id.split("-");
+                        addEmptyColumn(parseInt(indices[2]), "right");
+                    }
+                    if (evt.target.className==="col-delete")
+                    {
+                        const indices = evt.target.parentNode.id.split("-");
+                        delColumn(parseInt(indices[2]));
+                    }
+                }
+            });
+        }
+
+        buildSS();
+
+        // Close the dropdown menu if the user clicks outside of it
+        window.onclick = function(evt) {
+            if (!evt.target.matches(".dropbtn"))
+            {
+                var dropdowns = document.getElementsByClassName("dropdown-content");
+                var i;
+                for (i=0; i<dropdowns.length; i++)
+                {
+                    var openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains("show"))
+                    {
+                        openDropdown.classList.remove("show");
+                    }
+                }
+            }
+        };
+
+        let shList = document.getElementById("sheetlist");
+        async function loadNames()
+        {
+            const params = {...requestParams, method: 'get'};
+            const resp = await fetch('/sheet-list', params);
+            const json = await resp.json();
+            shList.innerHTML = '';
+            shList.append( ...json.map( (x) => {
+                const op = document.createElement('option');
+                op.textContent = x;
+                return op;
+            } ));
+            console.log(json);
+        }
+        loadNames();
+
+        function getSheetInputs(element)
+        {
+            const ssRow = Array.from(element.querySelectorAll('tr'));
+            const sheet = ssRow.map((r) => {
+                return Array.from(r.querySelectorAll('td'));
+            });
+            return sheet;
+        }
+
+        function getValues(sheetInputs)
+        {
+            return sheetInputs.map((r) => r.map((c) => c.value));
+        }
+
+        const resetButton = document.getElementById("reset");
+        resetButton.addEventListener("click", evt => {
+            if(confirm("This action will erase all unsaved data. Would you like to proceed?"))
+            {
+                this.reset();
+            }
+        });
+
+        const dropDnList = document.getElementById("sheetlist");
+        const getButton = document.getElementById("get0");
+        getButton.addEventListener("click", async evt => {
+            let data = this.get();
+            const name = dropDnList.value;
+            const params = {...requestParams, method: 'GET' };
+            const resp = await fetch( `/sheet/${name}`, params );
+            const json = await resp.json();
+            let d0 = json.slice(0);
+            editCells(data, d0);
+            saveChanges(data);
+            this.buildSS();
+        });
+
+        const form1 = document.getElementById("f1");
+        const csv1Btn = document.getElementById("csv1");
+        csv1Btn.addEventListener("click", async evt => {
+            const name = dropDnList.value;
+            form1.setAttribute('action',`/csv-export/${name}`);
+        });
+
+        let sheet = document.getElementById("table-body");
+        let saveButton = document.getElementById("save");
+        saveButton.addEventListener('click', async (evt) => {
+            const name = "newsheet";
+            const data = this.get();
+            data.shift();
+            for(let i=0; i<data.length; i++)
+            {
+                data[i].shift();
+            }
+            let d = [];
+            for(let i=0; i<data.length; i++)
+            {
+                if(data[i][0]!="")
+                {
+                    d.push(data[i]);
+                }
+            }
+            const values = JSON.stringify(d);
+            const params = {...requestParams, method: 'PUT', body: values};
+            const resp = await fetch(`/sheet/${name}`, params);
+            const json = await resp.json();
+            if(json.ok)
+            {
+                await loadNames();
+            }
+        });
+
+        const upLoad = document.getElementById("csv-file-chooser");
+        upLoad.addEventListener('change', async (evt) => {
+            let data = this.get();
+            const {files} = upLoad;
+            const first = files[0];
+
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                const json = await importCSV(reader.result);
+                console.log(json);
+                let d0 = json.slice(0);
+                editCells(data, d0);
+                saveChanges(data);
+                this.buildSS();
+            }; 
+            reader.readAsText(first);
+        });
+
+        async function importCSV(content)
+        {
+            const params = {...requestParams,
+                method: 'put',
+                headers : {
+                    'Accept' : 'application/json',
+                    'Content-Type' : 'text/plain',
+                },
+                body: content,
+            };
+            const resp = await fetch(`/csv-import`, params);
+            const json = await resp.json();
+            return json;
+        }
+
+        let ctx = document.getElementById('mycanv').getContext('2d');
+        const plotBtn = document.getElementById("plot-btn");
+        const plotBtn1 = document.getElementById("plot-btn1");
+        const plotBtn2 = document.getElementById("plot-btn2");
+        const plotBtn3 = document.getElementById("plot-btn3");
+        const plotBtn4 = document.getElementById("plot-btn4");
+
+        plotBtn.addEventListener("click", async evt => {
+            let scatterChart = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets: [] },
+                options: {}
+            });
+            const name = dropDnList.value;
+            const params = {...requestParams, method: 'GET' };
+            const resp = await fetch(`/sheet/${name}`, params);
+            const values = await resp.json();
+
+            const datasetNames = values.shift();
+
+            const colours = ['red','green','blue','black','brown'];
+            let colourIndex = 0;
+
+            const datasets = [];
+            for(let i=0; i<datasetNames.length; i++)
+            {
+                const pairs = [];
+                for(let row=0; row<values.length; row++)
+                {
+                    pairs.push({ x:row, y:values[row][i] });
+                }
+                const dataset = {
+                    label: datasetNames[i],
+                    data: pairs,
+                    pointBackgroundColor : colours[colourIndex],
+                    borderColor : colours[colourIndex],
+                    showLine : true,
+                    fill: false,
+                    lineTension : 0,
+                }
+                datasets.push(dataset);
+                colourIndex = colourIndex >= colours.length ? 0 : colourIndex+1;
+            }
+            scatterChart.data.datasets = datasets;
+            scatterChart.update();
+            plotBtn3.addEventListener("click", async evt => {
+                if(scatterChart!=null)
+                {
+                    scatterChart.destroy();
+                }
+            });
+        });
+
+        plotBtn1.addEventListener("click", async evt => {
+            const name = dropDnList.value;
+            const params = {...requestParams, method: 'GET' };
+            const resp = await fetch(`/sheet/${name}`, params);
+            const values = await resp.json();
+            let labels = [];
+            let dataVals = [];
+            let bgColors = ['blue', 'red', 'yellow', 'black'];
+            for(let i=0; i<values.length; i++)
+            {
+                labels.push(values[0][i]);
+                dataVals.push(values[1][i]);
+            }
+            let pieChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            data: dataVals,
+                            backgroundColor: bgColors,
+                            borderWidth: [1, 1, 1, 1]
+                        }
+                    ]
+                },
+                options: {}
+            });
+            plotBtn3.addEventListener("click", async evt => {
+                if(pieChart!=null)
+                {
+                    pieChart.destroy();
+                }
+            });
+        });
+
+        plotBtn2.addEventListener("click", async evt => {
+            const name = dropDnList.value;
+            const params = {...requestParams, method: 'GET' };
+            const resp = await fetch(`/sheet/${name}`, params);
+            const values = await resp.json();
+            let labels = [];
+            let dataVals = [];
+            let bgColors = ['cyan', 'red', 'yellow', 'black'];
+            for(let i=0; i<values.length; i++)
+            {
+                labels.push(values[0][i]);
+                dataVals.push(values[1][i]);
+            }
+            let barChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: "bar graph",
+                            data: dataVals,
+                            backgroundColor: bgColors,
+                            borderWidth: [1, 1, 1, 1]
+                        }
+                    ]
+                },
+                options: {}
+            });
+            plotBtn3.addEventListener("click", async evt => {
+                if(barChart!=null)
+                {
+                    barChart.destroy();
+                }
+            });
+        });
+
+        
+        plotBtn4.addEventListener("click", async evt => {
+            const name = dropDnList.value;
+            const params = {...requestParams, method: 'GET' };
+            const resp = await fetch(`/sheet/${name}`, params);
+            const values = await resp.json();
+            let labels = [];
+            let dataVals = [];
+            let bgColors = ['blue', 'red', 'yellow', 'black'];
+            for(let i=0; i<values.length; i++)
+            {
+                labels.push(values[0][i]);
+                dataVals.push(values[1][i]);
+            }
+            let donutChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            data: dataVals,
+                            backgroundColor: bgColors,
+                            borderWidth: [1, 1, 1, 1]
+                        }
+                    ]
+                },
+                options: {}
+            });
+            plotBtn3.addEventListener("click", async evt => {
+                if(donutChart!=null)
+                {
+                    donutChart.destroy();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

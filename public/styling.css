@@ -1,0 +1,15 @@
+div{ width: 300px; margin: 0 auto; text-align:center; color: #4d4d4d; }
+.admin { padding:1.1em; background-color:lightblue;  }
+
+h1{ font-size: 24px; font-weight:bold; color:red; }
+h3{ font-size: 18px; }
+
+input{ width: 100%; padding: 15px; border: 1px solid #dddddd; margin-bottom: 15px; box-sizing:border-box; }
+input#cbox{ width: 10%; }
+
+button{ width: 100%; padding: 15px; cursor: pointer; font-weight: bold; color: #ffffff; }
+button#login{ background-color: blue; }
+button#reg{ background-color: green; }
+button#update{ background-color: navy; }
+
+.new { border: dashed red thick; padding: 5px; }
